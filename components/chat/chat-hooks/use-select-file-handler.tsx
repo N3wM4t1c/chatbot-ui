@@ -62,10 +62,9 @@ export const useSelectFileHandler = () => {
         if (simplifiedFileType.includes("vnd.adobe.pdf")) {
           simplifiedFileType = "pdf"
         } else if (
-          simplifiedFileType.includes(
+          simplifiedFileType ===
             "vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-              "docx"
-          )
+          simplifiedFileType === "docx"
         ) {
           simplifiedFileType = "docx"
         }
