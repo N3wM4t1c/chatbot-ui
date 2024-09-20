@@ -6,6 +6,14 @@ import { OpenAIStream, StreamingTextResponse } from "ai"
 import OpenAI from "openai"
 import { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.mjs"
 
+interface SchemaDetail {
+  title: string
+  description: string
+  url: string
+  headers: Record<string, any> // Assuming headers is a JSON object
+  routeMap: Record<string, string>
+}
+
 export async function POST(request: Request) {
   const json = await request.json()
   const { chatSettings, messages, selectedTools } = json as {
@@ -26,12 +34,12 @@ export async function POST(request: Request) {
 
     let allTools: OpenAI.Chat.Completions.ChatCompletionTool[] = []
     let allRouteMaps = {}
-    let schemaDetails = []
+    let schemaDetails: SchemaDetail[] = []
 
     for (const selectedTool of selectedTools) {
       try {
         const convertedSchema = await openapiToFunctions(
-          JSON.parse(selectedTool.schema as string)
+          JSON.parse(selectedTool.schema as unknown as string)
         )
         const tools = convertedSchema.functions || []
         allTools = allTools.concat(tools)
@@ -52,7 +60,6 @@ export async function POST(request: Request) {
           url: convertedSchema.info.server,
           headers: selectedTool.custom_headers,
           routeMap
-          // Removed requestInBody
         })
       } catch (error: any) {
         console.error("Error converting schema", error)
@@ -100,7 +107,6 @@ export async function POST(request: Request) {
         if (!pathTemplate) {
           throw new Error(`Path for function ${functionName} not found`)
         }
-
         const path = pathTemplate.replace(/:(\w+)/g, (_, paramName) => {
           const value = parsedArgs.parameters[paramName]
           if (!value) {
@@ -115,80 +121,46 @@ export async function POST(request: Request) {
           throw new Error(`Path for function ${functionName} not found`)
         }
 
-        // Determine if the request should be in the body or as a query
-        const isRequestInBody = schemaDetail.requestInBody
         let data = {}
 
-        if (isRequestInBody) {
-          // If the type is set to body
-          let headers = {
-            "Content-Type": "application/json"
-          }
+        // Handle body request
+        let headers = {
+          "Content-Type": "application/json"
+        }
 
-          // Check if custom headers are set
-          const customHeaders = schemaDetail.headers // Moved this line up to the loop
-          // Check if custom headers are set and are of type string
-          if (customHeaders && typeof customHeaders === "string") {
-            let parsedCustomHeaders = JSON.parse(customHeaders) as Record<
-              string,
-              string
-            >
-
-            headers = {
-              ...headers,
-              ...parsedCustomHeaders
-            }
-          }
-
-          const fullUrl = schemaDetail.url + path
-
-          const bodyContent = parsedArgs.requestBody || parsedArgs
-
-          const requestInit = {
-            method: "POST",
-            headers,
-            body: JSON.stringify(bodyContent) // Use the extracted requestBody or the entire parsedArgs
-          }
-
-          const response = await fetch(fullUrl, requestInit)
-
-          if (!response.ok) {
-            data = {
-              error: response.statusText
-            }
-          } else {
-            data = await response.json()
-          }
-        } else {
-          // If the type is set to query
-          const queryParams = new URLSearchParams(
-            parsedArgs.parameters
-          ).toString()
-          const fullUrl =
-            schemaDetail.url + path + (queryParams ? "?" + queryParams : "")
-
-          let headers = {}
-
-          // Check if custom headers are set
-          const customHeaders = schemaDetail.headers
-          if (customHeaders && typeof customHeaders === "string") {
-            headers = JSON.parse(customHeaders)
-          }
-
-          const response = await fetch(fullUrl, {
-            method: "GET",
-            headers: headers
-          })
-
-          if (!response.ok) {
-            data = {
-              error: response.statusText
-            }
-          } else {
-            data = await response.json()
+        const customHeaders = schemaDetail.headers
+        if (customHeaders && typeof customHeaders === "string") {
+          const parsedCustomHeaders = JSON.parse(customHeaders) as Record<
+            string,
+            string
+          >
+          headers = {
+            ...headers,
+            ...parsedCustomHeaders
           }
         }
 
+        // Add the SERP API key from the environment variables
+        headers["X-api-key"] = process.env.SERP_API_KEY
+
+        const fullUrl = schemaDetail.url + path
+        const bodyContent = parsedArgs.requestBody || parsedArgs
+
+        const requestInit = {
+          method: "POST",
+          headers,
+          body: JSON.stringify(bodyContent)
+        }
+
+        const response = await fetch(fullUrl, requestInit)
+
+        if (!response.ok) {
+          data = {
+            error: response.statusText
+          }
+        } else {
+          data = await response.json()
+        }
         messages.push({
           tool_call_id: toolCall.id,
           role: "tool",

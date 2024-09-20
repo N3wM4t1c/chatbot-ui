@@ -10,7 +10,6 @@ interface OpenAPIData {
     path: string
     method: string
     operationId: string
-    requestInBody?: boolean
   }[]
   functions: any
 }
@@ -97,7 +96,6 @@ export const openapiToFunctions = async (
     path: string
     method: string
     operationId: string
-    requestInBody?: boolean // Add a flag to indicate if the request should be in the body
   }[] = []
 
   for (const [path, methods] of Object.entries(openapiSpec.paths)) {
@@ -146,14 +144,10 @@ export const openapiToFunctions = async (
         }
       })
 
-      // Determine if the request should be in the body based on the presence of requestBody
-      const requestInBody = !!spec.requestBody
-
       routes.push({
         path,
         method,
-        operationId: functionName,
-        requestInBody // Include this flag in the route information
+        operationId: functionName
       })
     }
   }
