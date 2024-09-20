@@ -9,6 +9,10 @@ import { get } from "@vercel/edge-config"
 import { Metadata } from "next"
 import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
+import { useState } from "react"
+import { supabase } from "@/lib/supabase/browser-client"
+import { useRouter } from "next/router"
+import { toast } from "sonner"
 
 export const metadata: Metadata = {
   title: "Login"
@@ -127,7 +131,7 @@ export default async function Login({
       password,
       options: {
         // USE IF YOU WANT TO SEND EMAIL VERIFICATION, ALSO CHANGE TOML FILE
-        // emailRedirectTo: `${origin}/auth/callback`
+        emailRedirectTo: `${origin}/auth/callback`
       }
     })
 

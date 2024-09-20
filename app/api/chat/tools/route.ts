@@ -51,8 +51,8 @@ export async function POST(request: Request) {
           description: convertedSchema.info.description,
           url: convertedSchema.info.server,
           headers: selectedTool.custom_headers,
-          routeMap,
-          requestInBody: convertedSchema.routes[0].requestInBody
+          routeMap
+          // Removed requestInBody
         })
       } catch (error: any) {
         console.error("Error converting schema", error)
