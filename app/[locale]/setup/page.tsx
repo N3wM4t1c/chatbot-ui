@@ -63,23 +63,29 @@ export default function SetupPage() {
 
   useEffect(() => {
     ;(async () => {
+      console.log("Starting setup process")
       const session = (await supabase.auth.getSession()).data.session
 
       if (!session) {
+        console.log("No session found, redirecting to login")
         return router.push("/login")
       } else {
         const user = session.user
-
         const profile = await getProfileByUserId(user.id)
         setProfile(profile)
         setUsername(profile.username)
 
         if (!profile.has_onboarded) {
+          console.log("User has not onboarded yet")
           setLoading(false)
         } else {
+          console.log("Fetching hosted models")
           const data = await fetchHostedModels(profile)
 
-          if (!data) return
+          if (!data) {
+            console.warn("No data found from fetchHostedModels")
+            return
+          }
 
           setEnvKeyMap(data.envKeyMap)
           setAvailableHostedModels(data.hostedModels)

@@ -22,6 +22,8 @@ export async function POST(request: Request) {
     selectedTools: Tables<"tools">[]
   }
 
+  console.log("Received tool POST request:", { chatSettings, selectedTools })
+
   try {
     const profile = await getServerProfile()
 
@@ -38,6 +40,7 @@ export async function POST(request: Request) {
 
     for (const selectedTool of selectedTools) {
       try {
+        console.log(`Processing tool: ${selectedTool.id}`)
         const convertedSchema = await openapiToFunctions(
           JSON.parse(selectedTool.schema as unknown as string)
         )
@@ -62,7 +65,11 @@ export async function POST(request: Request) {
           routeMap
         })
       } catch (error: any) {
-        console.error("Error converting schema", error)
+        console.error(
+          "Error converting schema for tool:",
+          selectedTool.id,
+          error
+        )
       }
     }
 
@@ -180,7 +187,7 @@ export async function POST(request: Request) {
 
     return new StreamingTextResponse(stream)
   } catch (error: any) {
-    console.error(error)
+    console.error("Error in tools POST route:", error)
     const errorMessage = error.error?.message || "An unexpected error occurred"
     const errorCode = error.status || 500
     return new Response(JSON.stringify({ message: errorMessage }), {

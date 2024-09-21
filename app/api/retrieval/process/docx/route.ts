@@ -8,6 +8,7 @@ import { NextResponse } from "next/server"
 import OpenAI from "openai"
 
 export async function POST(req: Request) {
+  console.log("DOCX retrieval process POST request received")
   const json = await req.json()
   const { text, fileId, embeddingsProvider, fileExtension } = json as {
     text: string
@@ -36,9 +37,11 @@ export async function POST(req: Request) {
 
     switch (fileExtension) {
       case "docx":
+        console.log("Processing DOCX file:", fileId)
         chunks = await processDocX(text)
         break
       default:
+        console.warn("Unsupported file type:", fileExtension)
         return new NextResponse("Unsupported file type", {
           status: 400
         })
@@ -62,25 +65,30 @@ export async function POST(req: Request) {
     }
 
     if (embeddingsProvider === "openai") {
+      console.log("Generating embeddings using OpenAI")
       const response = await openai.embeddings.create({
         model: "text-embedding-3-small",
         input: chunks.map(chunk => chunk.content)
       })
 
-      embeddings = response.data.map((item: any) => {
-        return item.embedding
-      })
+      embeddings = response.data.map((item: any) => item.embedding)
+      console.log("OpenAI embeddings generated successfully")
     } else if (embeddingsProvider === "local") {
+      console.log("Generating embeddings locally")
       const embeddingPromises = chunks.map(async chunk => {
         try {
           return await generateLocalEmbedding(chunk.content)
         } catch (error) {
-          console.error(`Error generating embedding for chunk: ${chunk}`, error)
+          console.error(
+            `Error generating local embedding for chunk: ${chunk.id}`,
+            error
+          )
           return null
         }
       })
 
       embeddings = await Promise.all(embeddingPromises)
+      console.log("Local embeddings generated successfully")
     }
 
     const file_items = chunks.map((chunk, index) => ({
@@ -111,7 +119,7 @@ export async function POST(req: Request) {
       status: 200
     })
   } catch (error: any) {
-    console.error(error)
+    console.error("DOCX retrieval process error:", error)
     const errorMessage = error.error?.message || "An unexpected error occurred"
     const errorCode = error.status || 500
     return new Response(JSON.stringify({ message: errorMessage }), {

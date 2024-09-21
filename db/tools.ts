@@ -59,6 +59,7 @@ export const createTool = async (
   tool: TablesInsert<"tools">,
   workspace_id: string
 ) => {
+  console.log("Creating new tool:", tool.name)
   const { data: createdTool, error } = await supabase
     .from("tools")
     .insert([tool])
@@ -66,9 +67,11 @@ export const createTool = async (
     .single()
 
   if (error) {
+    console.error("Error creating tool:", error)
     throw new Error(error.message)
   }
 
+  console.log("Tool created successfully:", createdTool.id)
   await createToolWorkspace({
     user_id: createdTool.user_id,
     tool_id: createdTool.id,

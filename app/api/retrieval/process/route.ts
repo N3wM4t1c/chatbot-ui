@@ -14,6 +14,7 @@ import { NextResponse } from "next/server"
 import OpenAI from "openai"
 
 export async function POST(req: Request) {
+  console.log("Retrieval process POST request received")
   try {
     const supabaseAdmin = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,16 +35,19 @@ export async function POST(req: Request) {
       .single()
 
     if (metadataError) {
+      console.error("Failed to retrieve file metadata:", metadataError.message)
       throw new Error(
         `Failed to retrieve file metadata: ${metadataError.message}`
       )
     }
 
     if (!fileMetadata) {
+      console.error("File not found")
       throw new Error("File not found")
     }
 
     if (fileMetadata.user_id !== profile.user_id) {
+      console.error("Unauthorized access attempt")
       throw new Error("Unauthorized")
     }
 
@@ -51,8 +55,10 @@ export async function POST(req: Request) {
       .from("files")
       .download(fileMetadata.file_path)
 
-    if (fileError)
+    if (fileError) {
+      console.error("Failed to retrieve file:", fileError.message)
       throw new Error(`Failed to retrieve file: ${fileError.message}`)
+    }
 
     const fileBuffer = Buffer.from(await file.arrayBuffer())
     const blob = new Blob([fileBuffer])
@@ -69,6 +75,7 @@ export async function POST(req: Request) {
         error.message =
           error.message +
           ", make sure it is configured or else use local embeddings"
+        console.error("Error checking API key:", error.message)
         throw error
       }
     }
@@ -77,21 +84,27 @@ export async function POST(req: Request) {
 
     switch (fileExtension) {
       case "csv":
+        console.log("Processing CSV file:", file_id)
         chunks = await processCSV(blob)
         break
       case "json":
+        console.log("Processing JSON file:", file_id)
         chunks = await processJSON(blob)
         break
       case "md":
+        console.log("Processing Markdown file:", file_id)
         chunks = await processMarkdown(blob)
         break
       case "pdf":
+        console.log("Processing PDF file:", file_id)
         chunks = await processPdf(blob)
         break
       case "txt":
+        console.log("Processing TXT file:", file_id)
         chunks = await processTxt(blob)
         break
       default:
+        console.warn("Unsupported file type:", fileExtension)
         return new NextResponse("Unsupported file type", {
           status: 400
         })
@@ -115,26 +128,30 @@ export async function POST(req: Request) {
     }
 
     if (embeddingsProvider === "openai") {
+      console.log("Generating embeddings using OpenAI")
       const response = await openai.embeddings.create({
         model: "text-embedding-3-small",
         input: chunks.map(chunk => chunk.content)
       })
 
-      embeddings = response.data.map((item: any) => {
-        return item.embedding
-      })
+      embeddings = response.data.map((item: any) => item.embedding)
+      console.log("OpenAI embeddings generated successfully")
     } else if (embeddingsProvider === "local") {
+      console.log("Generating embeddings locally")
       const embeddingPromises = chunks.map(async chunk => {
         try {
           return await generateLocalEmbedding(chunk.content)
         } catch (error) {
-          console.error(`Error generating embedding for chunk: ${chunk}`, error)
-
+          console.error(
+            `Error generating local embedding for chunk: ${chunk.id}`,
+            error
+          )
           return null
         }
       })
 
       embeddings = await Promise.all(embeddingPromises)
+      console.log("Local embeddings generated successfully")
     }
 
     const file_items = chunks.map((chunk, index) => ({
@@ -165,7 +182,7 @@ export async function POST(req: Request) {
       status: 200
     })
   } catch (error: any) {
-    console.log(`Error in retrieval/process: ${error.stack}`)
+    console.error("Retrieval process error:", error)
     const errorMessage = error?.message || "An unexpected error occurred"
     const errorCode = error.status || 500
     return new Response(JSON.stringify({ message: errorMessage }), {

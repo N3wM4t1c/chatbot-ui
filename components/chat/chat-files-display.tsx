@@ -64,12 +64,21 @@ export const ChatFilesDisplay: FC<ChatFilesDisplayProps> = ({}) => {
   const combinedMessageFiles = [...messageImages, ...combinedChatFiles]
 
   const getLinkAndView = async (file: ChatFile) => {
-    const fileRecord = files.find(f => f.id === file.id)
+    console.log("User requested to view file:", file.id)
+    try {
+      const fileRecord = files.find(f => f.id === file.id)
+      if (!fileRecord) {
+        console.warn("File record not found:", file.id)
+        return
+      }
 
-    if (!fileRecord) return
-
-    const link = await getFileFromStorage(fileRecord.file_path)
-    window.open(link, "_blank")
+      const link = await getFileFromStorage(fileRecord.file_path)
+      console.log("Opening file link:", link)
+      window.open(link, "_blank")
+    } catch (error) {
+      console.error("Error fetching file link:", file.id, error)
+      toast.error("Failed to fetch file link.", { duration: 5000 })
+    }
   }
 
   return showFilesDisplay && combinedMessageFiles.length > 0 ? (
