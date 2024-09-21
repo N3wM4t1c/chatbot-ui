@@ -124,7 +124,7 @@ export async function POST(request: Request) {
         let data = {}
 
         // Handle body request
-        let headers = {
+        let headers: Record<string, string> = {
           "Content-Type": "application/json"
         }
 
@@ -140,8 +140,8 @@ export async function POST(request: Request) {
           }
         }
 
-        // Add the SERP API key from the environment variables
-        headers["X-api-key"] = process.env.SERP_API_KEY
+        // Remove the unused "X-api-key" header
+        // headers["X-api-key"] = process.env.SERP_API_KEY || ""
 
         const fullUrl = schemaDetail.url + path
         const bodyContent = parsedArgs.requestBody || parsedArgs
